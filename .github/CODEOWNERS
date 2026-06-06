@@ -1,0 +1,12 @@
+# CODEOWNERS — every PR needs review from at least one of these GitHub
+# handles. Add your team's handles below.
+
+# Default: repo owner reviews everything
+*       @shivakovvuru
+
+# More specific paths can override the default rule
+/client/src/    @shivakovvuru
+/server/        @shivakovvuru
+/docs/          @shivakovvuru
+/deploy/        @shivakovvuru
+/.github/       @shivakovvuru
