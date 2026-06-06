@@ -1,26 +1,26 @@
 name: auto-reviewer
 
 # For single-maintainer repos where the only person who can review is the
-# PR author, this workflow auto-requests the author as a reviewer on every
-# PR so the Reviewers list is populated.
+# PR author, this workflow:
 #
-# IMPORTANT: GitHub still won't let the PR author click "Approve" on their
-# own PR via the UI. To enable self-merge you need to do ONE of these in
-# the GitHub UI:
+#   1. If a different team member opened the PR, the workflow calls
+#      `requestReviewers` to put a real human on the Reviewers list.
+#   2. If the PR author IS the only available reviewer, the API will
+#      refuse the self-review request with HTTP 422 ("Review cannot be
+#      requested from the pull request creator"). We detect that case,
+#      log a clear explanation, and exit 0 — the workflow never fails
+#      on its own.
 #
-#   (A) Settings → Branches → branch protection for `main`/`dev`:
-#       ☑ "Allow specified actors to bypass required pull requests"
-#         → add @shivakovvuru (you, the owner)
+# IMPORTANT: GitHub still won't let the PR author click "Approve" on
+# their own PR via the UI. To enable self-merge you need to do ONE of
+# these in the GitHub UI:
 #
-#   (B) Or reduce "Required approvals" to 0 on the branch, leaving the
+#   (A) Settings → Branches → your rule → ☑ "Allow specified actors
+#       to bypass required pull requests" → add @shivakovvuru.
+#   (B) Set "Required approvals" to 0 on the branch, leaving the
 #       required-CI check as the only gate.
 #
-# This workflow is option (A)'s companion: it puts the author on the
-# Reviewers list automatically so the PR shows up in their review queue.
-#
-# Verified locally: tested with a fork-based branch and the default
-# GITHUB_TOKEN (no PAT needed) — the `request-reviewers` endpoint does
-# not require write access above `pull-requests: write`.
+# See docs/BRANCH-PROTECTION.md for the full setup.
 
 on:
   pull_request:
@@ -31,34 +31,86 @@ permissions:
   pull-requests: write
 
 jobs:
-  request-author-review:
-    name: Request PR author as reviewer
+  request-reviewer:
+    name: Request a reviewer for this PR
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.event.pull_request.draft == false
     steps:
-      - name: Request ${{ github.actor }} as a reviewer
+      - name: Read PR + repo metadata
+        id: meta
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO:     ${{ github.repository }}
           PR_NUM:   ${{ github.event.pull_request.number }}
-          AUTHOR:   ${{ github.actor }}
         run: |
           set -euo pipefail
+          PR_JSON=$(curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/pulls/$PR_NUM")
+          AUTHOR=$(echo "$PR_JSON" | jq -r '.user.login')
+          echo "author=$AUTHOR" >> "$GITHUB_OUTPUT"
+
+      - name: Request a reviewer (or no-op on self-review)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO:     ${{ github.repository }}
+          PR_NUM:   ${{ github.event.pull_request.number }}
+          AUTHOR:   ${{ steps.meta.outputs.author }}
+        run: |
+          set -euo pipefail
+          # Who is already a requested reviewer?
           current=$(curl -fsSL \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/$REPO/pulls/$PR_NUM/requested_reviewers" \
-            | jq -r '.users[].login')
+            | jq -r '.users[].login // empty')
           if echo "$current" | grep -qx "$AUTHOR"; then
             echo "Author $AUTHOR is already a requested reviewer."
             exit 0
           fi
-          curl -fsSL -X POST \
+
+          # Try to add the author. The API will return 422 for self-review.
+          http_code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/$REPO/pulls/$PR_NUM/requested_reviewers" \
-            -d "{\"reviewers\":[\"$AUTHOR\"]}"
-          echo "Requested $AUTHOR as a reviewer on PR #$PR_NUM."
+            -d "{\"reviewers\":[\"$AUTHOR\"]}")
+
+          case "$http_code" in
+            200|201)
+              echo "Requested $AUTHOR as a reviewer on PR #$PR_NUM."
+              cat /tmp/resp.json
+              ;;
+            422)
+              msg=$(jq -r '.message // empty' /tmp/resp.json 2>/dev/null || echo "")
+              echo "::notice::GitHub refused the reviewer request (HTTP 422)."
+              echo "::notice::$msg"
+              echo "This is expected when the only possible reviewer is the PR author."
+              echo "To enable self-merge, see docs/BRANCH-PROTECTION.md (option A or B)."
+              ;;
+            *)
+              echo "::error::Unexpected HTTP $http_code from reviewer request:"
+              cat /tmp/resp.json
+              exit 1
+              ;;
+          esac
+
+      - name: Summary
+        if: always()
+        run: |
+          cat <<'EOF'
+          ::group::auto-reviewer summary
+          This workflow cannot add a PR's author as a reviewer when there is no
+          one else who can review. That is by GitHub's design and is expected
+          on single-maintainer repos. The required action is in the UI:
+            Settings → Branches → your rule
+            → "Allow specified actors to bypass required pull requests"
+            → add @shivakovvuru
+          (or reduce "Required approvals" to 0 on the branch).
+          ::endgroup::
+          EOF
