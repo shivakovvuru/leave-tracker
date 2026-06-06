@@ -58,7 +58,14 @@ const Signup: React.FC = () => {
         </form>
 
         <div className="auth-footer">
-          Already have an account? <a onClick={() => window.location.href = '/login'}>Sign in</a>
+          Already have an account?{' '}
+          <button
+            type="button"
+            onClick={() => window.location.href = '/login'}
+            style={{ background: 'transparent', border: 0, padding: 0, color: 'var(--acn-purple)', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Sign in
+          </button>
         </div>
         <div className="auth-note">
           After signup, an administrator will review and approve your account before you can sign in.

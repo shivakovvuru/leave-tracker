@@ -1,23 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Leaves } from '../api';
-import { Leave, LeaveType, LeaveStatus } from '../types';
+import { Leave, LeaveType } from '../types';
 import { useAuth } from '../AuthContext';
 import Modal from '../components/Modal';
 import {
-  Button, Field, Input, Select, Textarea, Badge, EmptyState,
+  Button, Field, Input, Select, Textarea, Badge,
 } from '../components/FormControls';
-import { IconPlus, IconEdit, IconCalendar, IconTrash } from '../components/Icons';
+import { IconPlus, IconEdit, IconTrash } from '../components/Icons';
 
 const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   'PL': 'PL (Planned Leave)',
   'Sick Leave': 'Sick Leave',
   'Unplanned Leave': 'Unplanned Leave',
-};
-
-const STATUS_COLORS: Record<LeaveStatus, string> = {
-  'Approved': '#10b981',
-  'Pending':  '#f59e0b',
-  'Rejected': '#ef4444',
 };
 
 const MyLeaves: React.FC = () => {
@@ -32,7 +26,7 @@ const MyLeaves: React.FC = () => {
     if (!member) return;
     Leaves.list({ member_id: member.id }).then(setItems);
   };
-  useEffect(() => { refresh(); }, [member]);
+  useEffect(() => { refresh(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [member]);
   // Refetch when the tab regains focus / page becomes visible — covers
   // the case where the admin approved a leave while the member was elsewhere
   useEffect(() => {
