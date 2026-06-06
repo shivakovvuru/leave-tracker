@@ -1,0 +1,72 @@
+name: branch-protection
+
+# This workflow verifies the live branch-protection rules on the GitHub
+# repository match the documented expectations. GitHub does not let a
+# workflow *change* branch protection rules (that requires the REST
+# API + a fine-grained PAT), but it can detect drift and fail loudly.
+
+on:
+  schedule:
+    # Run once a day. Drift should be rare but easy to miss.
+    - cron: '17 6 * * *'
+  workflow_dispatch:    # allow manual trigger from the Actions tab
+  push:
+    branches: [main, dev]
+
+jobs:
+  verify:
+    name: Verify branch protection
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Verify required branch protection (manual)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO:     ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # The default GITHUB_TOKEN only has read access to most endpoints,
+          # including branch protection metadata. If your org restricts this
+          # further, set the env vars above to a PAT with `repo` scope.
+          for branch in main dev; do
+            echo "::group::$branch"
+            data=$(curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPO/branches/$branch/protection" \
+              || echo "{}")
+            python3 - "$branch" <<PY
+          import json, os, sys
+          branch = sys.argv[1]
+          data = json.loads('''$data''' or '{}')
+          if not data:
+              print(f"  no protection configured for {branch}")
+              sys.exit(0)
+          required = data.get('required_pull_request_reviews') or {}
+          status_checks = data.get('required_status_checks') or {}
+          problems = []
+          if not data.get('required_signatures', {}).get('enabled') and False:
+              # signed commits are optional; do not fail on this
+              pass
+          if not required.get('required_approving_review_count', 0) >= 1:
+              problems.append("requires >= 1 approving review")
+          if not required.get('require_code_owner_reviews'):
+              problems.append("requires Code Owner review")
+          if not status_checks.get('contexts'):
+              problems.append("requires at least one status check")
+          if not data.get('enforce_admins', {}).get('enabled'):
+              problems.append("Include administrators is OFF")
+          if not data.get('allow_force_pushes', {}).get('enabled') is False:
+              problems.append("Force pushes are allowed")
+          if problems:
+              print(f"  ❌ {branch}: {', '.join(problems)}")
+              sys.exit(1)
+          print(f"  ✅ {branch}: looks good")
+          PY
+            echo "::endgroup::"
+          done

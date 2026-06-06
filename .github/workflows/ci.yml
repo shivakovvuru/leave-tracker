@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+# Cancel an in-progress run when a new commit lands on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke:
+    name: Build + smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      PORT: 5000
+      NODE_ENV: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Cache client build
+        id: cache-client
+        uses: actions/cache@v4
+        with:
+          path: client/build
+          key: client-build-${{ github.sha }}
+          restore-keys: |
+            client-build-
+
+      - name: Install dependencies
+        run: npm run install:all
+
+      - name: Build the React bundle
+        run: npm run build
+
+      - name: Verify build artifacts exist
+        run: |
+          test -f client/build/index.html
+          test -d client/build/static
+          echo "Build artifacts present."
+
+      - name: Smoke test — start server in background
+        run: |
+          nohup node scripts/start.js > server.log 2>&1 &
+          echo $! > server.pid
+          # wait up to 30s for the server to come up
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5000/api/health >/dev/null 2>&1; then
+              echo "Server is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Server failed to start within 30s"
+          cat server.log
+          exit 1
+
+      - name: Smoke test — endpoints
+        run: |
+          set -euo pipefail
+          base=http://127.0.0.1:5000
+
+          echo "• /api/health"
+          curl -fsS "$base/api/health" | tee /tmp/health.json
+          echo
+
+          echo "• POST /api/auth/login (admin)"
+          ATOK=$(curl -fsS -X POST "$base/api/auth/login" \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@company.com","password":"admin123"}' \
+            | grep -oE '"token":"[a-f0-9]+"' | cut -d'"' -f4)
+          test -n "$ATOK" || { echo "::error::no admin token"; exit 1; }
+          echo "  admin token: ${ATOK:0:12}…"
+
+          echo "• GET /api/auth/me (admin)"
+          curl -fsS "$base/api/auth/me" -H "Authorization: Bearer $ATOK" | head -c 200; echo
+
+          echo "• GET /api/members (admin sees mobile)"
+          curl -fsS "$base/api/members" -H "Authorization: Bearer $ATOK" \
+            | grep -oE '"mobile":"[^"]*"' | head -3
+
+          echo "• GET /api/projects (admin)"
+          curl -fsS "$base/api/projects" -H "Authorization: Bearer $ATOK" | head -c 200; echo
+
+          echo "• GET /api/years"
+          curl -fsS "$base/api/years" -H "Authorization: Bearer $ATOK" | head -c 200; echo
+
+          echo "• GET /logo.svg (static asset)"
+          curl -fsS -o /dev/null -w "HTTP %{http_code} ct=%{content_type}\n" "$base/logo.svg"
+
+          echo "• POST /api/auth/login (member)"
+          MTOK=$(curl -fsS -X POST "$base/api/auth/login" \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"aarav@company.com","password":"member123"}' \
+            | grep -oE '"token":"[a-f0-9]+"' | cut -d'"' -f4)
+          test -n "$MTOK" || { echo "::error::no member token"; exit 1; }
+          echo "  member token: ${MTOK:0:12}…"
+
+          echo "• POST /api/leaves — past date must be 400"
+          PAST=$(date -d '-1 day' +%Y-%m-%d)
+          HTTP=$(curl -sS -o /tmp/past.json -w "%{http_code}" -X POST "$base/api/leaves" \
+            -H 'Content-Type: application/json' -H "Authorization: Bearer $MTOK" \
+            -d "{\"leave_type\":\"PL\",\"start_date\":\"$PAST\",\"end_date\":\"$PAST\"}")
+          test "$HTTP" = "400" || { echo "::error::past-date should be 400, got $HTTP"; cat /tmp/past.json; exit 1; }
+          cat /tmp/past.json; echo
+
+          echo "• POST /api/leaves — Saturday must be 400"
+          SAT=$(date -d 'next Saturday' +%Y-%m-%d)
+          HTTP=$(curl -sS -o /tmp/sat.json -w "%{http_code}" -X POST "$base/api/leaves" \
+            -H 'Content-Type: application/json' -H "Authorization: Bearer $MTOK" \
+            -d "{\"leave_type\":\"PL\",\"start_date\":\"$SAT\",\"end_date\":\"$SAT\"}")
+          test "$HTTP" = "400" || { echo "::error::saturday should be 400, got $HTTP"; cat /tmp/sat.json; exit 1; }
+          cat /tmp/sat.json; echo
+
+          echo "• POST /api/leaves — valid weekday should be 200"
+          OK=$(date -d '+60 days' +%Y-%m-%d)
+          HTTP=$(curl -sS -o /tmp/ok.json -w "%{http_code}" -X POST "$base/api/leaves" \
+            -H 'Content-Type: application/json' -H "Authorization: Bearer $MTOK" \
+            -d "{\"leave_type\":\"PL\",\"start_date\":\"$OK\",\"end_date\":\"$OK\",\"reason\":\"ci-smoke\"}")
+          test "$HTTP" = "200" || { echo "::error::valid leave should be 200, got $HTTP"; cat /tmp/ok.json; exit 1; }
+          cat /tmp/ok.json; echo
+
+          echo "• POST /api/leaves — same date again must be 400 (overlap)"
+          HTTP=$(curl -sS -o /tmp/dup.json -w "%{http_code}" -X POST "$base/api/leaves" \
+            -H 'Content-Type: application/json' -H "Authorization: Bearer $MTOK" \
+            -d "{\"leave_type\":\"PL\",\"start_date\":\"$OK\",\"end_date\":\"$OK\"}")
+          test "$HTTP" = "400" || { echo "::error::overlap should be 400, got $HTTP"; cat /tmp/dup.json; exit 1; }
+          cat /tmp/dup.json; echo
+
+          echo "All smoke tests passed."
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill "$(cat server.pid)" 2>/dev/null || true
+            rm -f server.pid
+          fi
+          # fall back to a pkill
+          pkill -f 'node scripts/start.js' 2>/dev/null || true
+          pkill -f 'node server/server.js'  2>/dev/null || true
+          echo "Server stopped."
