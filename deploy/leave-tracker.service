@@ -1,0 +1,27 @@
+[Unit]
+Description=Leave Tracker (Node + React)
+Documentation=https://github.com/your-org/leave-tracker
+After=network.target
+
+[Service]
+Type=simple
+User=lt-deploy
+Group=lt-deploy
+WorkingDirectory=/opt/leave-tracker
+Environment=NODE_ENV=production
+Environment=PORT=5000
+Environment=HOST=0.0.0.0
+ExecStart=/usr/bin/node server/server.js
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/leave-tracker/server/data
+
+[Install]
+WantedBy=multi-user.target

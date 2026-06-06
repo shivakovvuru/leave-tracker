@@ -1,0 +1,24 @@
+{
+  "name": "leave-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leave Tracker for project teams — React + TypeScript + Express + SQLite. Single binary-style deployment.",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "server": "node server/server.js",
+    "server:dev": "node --watch server/server.js",
+    "client": "npm --prefix client start",
+    "client:install": "npm --prefix client install",
+    "build": "npm --prefix client run build",
+    "start": "node scripts/start.js",
+    "dev": "node scripts/dev.js",
+    "dev:windows": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

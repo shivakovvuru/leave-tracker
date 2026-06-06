@@ -1,0 +1,28 @@
+# docker compose -f deploy/docker-compose.yml up --build
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: leave-tracker:latest
+    container_name: leave-tracker
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      HOST: 0.0.0.0
+    volumes:
+      # Persist the SQLite database between container restarts
+      - lt_data:/app/server/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  lt_data:
+    name: leave-tracker-data
