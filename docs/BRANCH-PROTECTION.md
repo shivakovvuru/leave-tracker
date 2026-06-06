@@ -53,3 +53,25 @@ Same rules as `main`, **except**:
 
 The `branch-protection.yml` workflow will run on the next push and report
 green if the rules match.
+
+---
+
+## Single-maintainer / self-merge
+
+GitHub refuses to let the PR author click **Approve** on their own PR.
+For a single-maintainer repo, the official way to enable self-merge is:
+
+1. **Settings → Branches → your rule → ☑ "Allow specified actors to
+   bypass required pull requests"** → add `@shivakovvuru` (or your team
+   handles).
+
+2. The companion workflow `.github/workflows/auto-reviewer.yml` runs on
+   every PR and auto-requests the author as a reviewer, so the Reviewers
+   list is populated and the required-CI check is the only real gate.
+
+3. As an alternative, set "Required approvals" to **0** on `dev` and
+   keep "Require status checks to pass before merging" on. That way the
+   CI smoke test is the only gate — fine for a single-maintainer repo.
+
+The CODEOWNERS rule still names you so the request-reviewer workflow can
+auto-assign the PR.
