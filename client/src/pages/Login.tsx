@@ -49,7 +49,14 @@ const Login: React.FC = () => {
         </form>
 
         <div className="auth-footer">
-          New here? <a onClick={() => window.location.href = '/signup'}>Create an account</a>
+          New here?{' '}
+          <button
+            type="button"
+            onClick={() => window.location.href = '/signup'}
+            style={{ background: 'transparent', border: 0, padding: 0, color: 'var(--acn-purple)', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Create an account
+          </button>
         </div>
         <div className="auth-demo">
           <strong>Demo credentials</strong>

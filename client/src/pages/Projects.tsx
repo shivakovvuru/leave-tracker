@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Projects as ProjectsApi, Members, Roles, Holidays } from '../api';
-import { Project, Member, Role, PublicHoliday } from '../types';
+import { Projects as ProjectsApi, Members, Roles } from '../api';
+import { Project, Member, Role } from '../types';
 import { useAuth } from '../AuthContext';
 import Modal from '../components/Modal';
 import {
@@ -15,7 +15,6 @@ const ProjectsPage: React.FC = () => {
   const isAdmin = user?.role === 'admin';
   const [projects, setProjects] = useState<Project[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [search, setSearch] = useState('');
 
@@ -31,7 +30,6 @@ const ProjectsPage: React.FC = () => {
   const refresh = () => {
     ProjectsApi.list().then(setProjects);
     Roles.list().then(setRoles);
-    Holidays.list().then(setHolidays);
     Members.list().then(setMembers);
   };
   useEffect(refresh, []);
@@ -107,7 +105,6 @@ const ProjectsPage: React.FC = () => {
     const rows = [
       ['Member', 'Role', 'Annual Quota', 'On Leave Today'],
       ...members.filter(m => m.project_id === selectedProject.id).map(m => {
-        const today = new Date().toISOString().slice(0, 10);
         return [m.name, m.role_name || '', m.join_date || '', ''];
       }),
     ];

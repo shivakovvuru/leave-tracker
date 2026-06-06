@@ -27,6 +27,7 @@ const Reports: React.FC = () => {
       setYears(ys);
       if (ys.length && !ys.find(y => y.year === year)) setYear(ys[0].year);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

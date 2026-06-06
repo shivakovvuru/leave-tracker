@@ -3,7 +3,7 @@ import { Holidays as HolidaysApi } from '../api';
 import { PublicHoliday } from '../types';
 import Modal from '../components/Modal';
 import { Button, Field, Input, EmptyState, Badge } from '../components/FormControls';
-import { IconPlus, IconTrash, IconCalendar } from '../components/Icons';
+import { IconPlus, IconTrash } from '../components/Icons';
 
 const HolidaysPage: React.FC = () => {
   const [holidays, setHolidays] = useState<PublicHoliday[]>([]);

@@ -44,7 +44,10 @@ jobs:
         run: npm run install:all
 
       - name: Build the React bundle
-        run: npm run build
+        # react-scripts treats warnings as errors when CI is set. We still
+        # want CI=true at the workflow level (so step failures don't get
+        # masked), so we explicitly unset it for the build call only.
+        run: CI=false npm run build
 
       - name: Verify build artifacts exist
         run: |

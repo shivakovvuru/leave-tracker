@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Members as MembersApi, Roles, Projects, Years as YearsApi, Auth } from '../api';
-import { Member, Role, Project, FiscalYear } from '../types';
+import { Members as MembersApi, Roles, Projects, Auth } from '../api';
+import { Member, Role, Project } from '../types';
 import { useAuth } from '../AuthContext';
 import Modal from '../components/Modal';
 import {
@@ -15,7 +15,6 @@ const Members: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [filterProject, setFilterProject] = useState<string>('');
@@ -32,7 +31,6 @@ const Members: React.FC = () => {
     MembersApi.list().then(setMembers);
     Roles.list().then(setRoles);
     Projects.list().then(setProjects);
-    YearsApi.list().then(setFiscalYears);
     if (isAdmin) Auth.pendingUsers().then(setPendingUsers).catch(() => {});
   };
   useEffect(refresh, [isAdmin]);
