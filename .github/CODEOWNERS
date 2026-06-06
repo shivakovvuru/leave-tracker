@@ -1,5 +1,12 @@
 # CODEOWNERS — every PR needs review from at least one of these GitHub
 # handles. Add your team's handles below.
+#
+# For single-maintainer repos: GitHub will not let the PR author click
+# "Approve" on their own PR. The companion workflow
+# `.github/workflows/auto-reviewer.yml` auto-requests the author as a
+# reviewer, and the recommended branch-protection setting
+# "Allow specified actors to bypass required pull requests" lets the
+# author merge once CI is green. See docs/BRANCH-PROTECTION.md.
 
 # Default: repo owner reviews everything
 *       @shivakovvuru
