@@ -19,9 +19,6 @@ export type Page =
   | 'dashboard' | 'projects' | 'members' | 'calendar'
   | 'reports'  | 'holidays'  | 'my-leaves' | 'approvals' | 'years' | 'profile';
 
-const ADMIN_PAGES: Page[] = ['dashboard', 'projects', 'members', 'calendar', 'reports', 'holidays', 'approvals', 'years'];
-const MEMBER_PAGES: Page[] = ['dashboard', 'projects', 'calendar', 'my-leaves'];
-
 const Inner: React.FC = () => {
   const { user, loading } = useAuth();
   const path = window.location.pathname;

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Architecture & data-flow
+    url: https://github.com/shivakovvuru/leave-tracker/blob/main/docs/ARCHITECTURE.md
+    about: How the client, API, and database are wired together.
+  - name: Deployment guide
+    url: https://github.com/shivakovvuru/leave-tracker/blob/main/docs/DEPLOYMENT.md
+    about: Docker, nginx, PM2, systemd, Render, Fly, Railway, and bare-metal instructions.

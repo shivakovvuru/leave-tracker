@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Leaves } from '../api';
-import { Leave, LeaveType, LeaveStatus } from '../types';
+import { Leave } from '../types';
 import { Button, Badge, EmptyState } from '../components/FormControls';
 import { IconCheck } from '../components/Icons';
 

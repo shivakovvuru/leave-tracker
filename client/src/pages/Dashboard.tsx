@@ -110,14 +110,6 @@ const Dashboard: React.FC<Props> = ({ onNavigate }) => {
     const pieData = (scopedReport?.byType || []).map((t: any) => ({
       name: t.leave_type, value: t.total_days, records: t.total_records,
     }));
-    const pieMembers = selectedProjectId
-      ? Object.values((scopedReport?.byMember || [])).map((m: any) => ({
-          name: m.name, value: m.pl_days + m.sick_days + m.unplanned_days,
-          project: selectedProject?.name, role: m.role_name,
-        }))
-      : (report?.byMemberShare || []).map((m: any) => ({
-          name: m.name, value: m.total_days, project: m.project_name, role: m.role_name,
-        }));
     // "By Project" only makes sense at the org level — hide it when a project is selected
     const pieProjects = selectedProjectId ? [] : ((report?.byProject || []).map((p: any) => ({
       name: p.name, value: p.total_days, records: p.total_records,
@@ -266,7 +258,16 @@ const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           <div className="card">
             <div className="card-header">
               <h3>{selectedProjectId ? `Project — ${selectedProject?.name || ''}` : 'Active Projects'}</h3>
-              {!selectedProjectId && <a className="card-link" onClick={() => onNavigate('projects')}>View all →</a>}
+              {!selectedProjectId && (
+                <button
+                  type="button"
+                  className="card-link"
+                  onClick={() => onNavigate('projects')}
+                  style={{ background: 'transparent', border: 0, padding: 0, cursor: 'pointer' }}
+                >
+                  View all →
+                </button>
+              )}
             </div>
             {projects.length === 0 ? (
               <div className="card-empty">No projects yet. Create your first one to get started.</div>
